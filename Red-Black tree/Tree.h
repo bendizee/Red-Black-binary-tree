@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Node.h"
+#include "Balancer.h"
+#include "Searcher.h"
+#include "Detourer.h"
 #include <iomanip>
 #include <iostream>
 #include <utility>
-#include <queue>
 
 template <class T>
 class Tree
@@ -25,29 +27,18 @@ public:
 	int deep(T key);
 	int height();
 
+	Detourer<T> detourer;
+    Balancer<T> balance;
+    Searcher<T> searcher;
+
 private:
 
 	void insert_(Node<T>*& root, Node<T>* node);
-	void insertBalance(Node<T>*& root, Node<T>* node);
 
 	void remove_(Node<T>*& root, Node<T>* node);
-	void removeBalanced(Node<T>*& root, Node<T>* node, Node<T>* parent);
 	void destroy(Node<T>*& node);
 
-	Node<T>* search_(Node<T>* node, T key)const;
 	void print_(Node<T>* node)const;
-
-	void leftRotate(Node<T>*& root, Node<T>* x); //Left turn
-	void rightRotate(Node<T>*& root, Node<T>* y); //Right turn
-
-	//Detours
-	//Depth
-	void detour_straight_(Node<T>* tree)const; //Pre-order
-	void detour_symmetric_(Node<T>* tree)const; //In-order
-	void detour_reverse_(Node<T>* tree)const; //Post order
-
-	//Width
-	void detour_width_(Node<T>* tree)const;
 
 	int deep_(Node<T>* node, T key,int d);
 	int height_(Node<T>* node);
@@ -65,64 +56,6 @@ Tree<T>::Tree() : root(NULL)
 template <class T>
 Tree<T>::~Tree() {
 	destroy(root);
-};
-
-template <class T>
-void Tree<T>::leftRotate(Node<T>*& root, Node<T>* x)
-{
-	Node<T>* y = x->right;
-	x->right = y->left;
-	if (y->left != NULL)
-	{
-		y->left->parent = x;
-	}
-
-	y->parent = x->parent;
-	if (x->parent == NULL)
-	{
-		root = y;
-	}
-	else {
-		if (x == x->parent->left)
-		{
-			x->parent->left = y;
-		}
-		else
-		{
-			x->parent->right = y;
-		}
-	}
-	y->left = x;
-	x->parent = y;
-};
-
-template <class T>
-void Tree<T>::rightRotate(Node<T>*& root, Node<T>* y)
-{
-	Node<T>* x = y->left;
-	y->left = x->right;
-	if (x->right != NULL)
-	{
-		x->right->parent = y;
-	}
-
-	x->parent = y->parent;
-	if (y->parent == NULL)
-	{
-		root = x;
-	}	
-	else {
-		if (y == y->parent->right)
-		{
-			y->parent->right = x;
-		}
-		else
-		{
-			y->parent->left = x;
-		}
-	}
-	x->right = y;
-	y->parent = x;
 };
 
 template <class T>
@@ -161,74 +94,13 @@ void Tree<T>::insert_(Node<T>*& root, Node<T>* node)
 	else
 		root = node;
 	node->color = red;
-	insertBalance(root, node);
-};
-
-template<class T>
-void Tree<T>::insertBalance(Node<T>*& root, Node<T>* node)
-{
-	Node<T>* parent;
-	parent = node->parent;
-	while (node != Tree::root && parent->color == red)
-	{
-		Node<T>* gparent = parent->parent;
-		if (gparent->left == parent)
-		{
-			Node<T>* uncle = gparent->right;
-			if (uncle != NULL && uncle->color == red)
-			{
-				parent->color = black;
-				uncle->color = black;
-				gparent->color = red;
-				node = gparent;
-				parent = node->parent;
-			}
-			else
-			{
-				if (parent->right == node)
-				{
-					leftRotate(root, parent);
-					std::swap(node, parent);
-				}
-				rightRotate(root, gparent);
-				gparent->color = red;
-				parent->color = black;
-				break;
-			}
-		}
-		else
-		{
-			Node<T>* uncle = gparent->left;
-			if (uncle != NULL && uncle->color == red)
-			{
-				gparent->color = red;
-				parent->color = black;
-				uncle->color = black;
-
-				node = gparent;
-				parent = node->parent;
-			}
-			else
-			{
-				if (parent->left == node)
-				{
-					rightRotate(root, parent);
-					std::swap(node, parent);
-				}
-				leftRotate(root, gparent);
-				parent->color = black;
-				gparent->color = red;
-				break;
-			}
-		}
-	}
-	root->color = black;
+	balance.insertBalanced(root, node);
 };
 
 template<class T>
 void Tree<T>::remove(T key)
 {
-	Node<T>* deletenode = search_(root, key);
+	Node<T>* deletenode = searcher.search(root, key);
 	if (deletenode != NULL)
 		remove_(root, deletenode);
 }
@@ -286,7 +158,7 @@ void Tree<T>::remove_(Node<T>*& root, Node<T>* node)
 		node->left->parent = replace;
 		if (color == black)
 		{
-			removeBalanced(root, child, parent);
+			balance.removeBalanced(root, child, parent);
 		}
 
 		delete node;
@@ -325,103 +197,18 @@ void Tree<T>::remove_(Node<T>*& root, Node<T>* node)
 
 	if (color == black)
 	{
-		removeBalanced(root, child, parent);
+		balance.removeBalanced(root, child, parent);
 	}
 	delete node;
 
 }
 
-template<class T>
-void Tree<T>::removeBalanced(Node<T>*& root, Node<T>* node, Node<T>* parent)
-{
-	Node<T>* othernode;
-	while ((!node) || node->color == black && node != Tree::root)
-	{
-		if (parent->left == node)
-		{
-			othernode = parent->right;
-			if (othernode->color == red)
-			{
-				othernode->color = black;
-				parent->color = red;
-				leftRotate(root, parent);
-				othernode = parent->right;
-			}
-			else
-			{
-				if (!(othernode->right) || othernode->right->color == black)
-				{
-					othernode->left->color = black;
-					othernode->color = red;
-					rightRotate(root, othernode);
-					othernode = parent->right;
-				}
-				othernode->color = parent->color;
-				parent->color = black;
-				othernode->right->color = black;
-				leftRotate(root, parent);
-				node = root;
-				break;
-			}
-		}
-		else
-		{
-			othernode = parent->left;
-			if (othernode->color == red)
-			{
-				othernode->color = black;
-				parent->color = red;
-				rightRotate(root, parent);
-				othernode = parent->left;
-			}
-			if ((!othernode->left || othernode->left->color == black) && (!othernode->right || othernode->right->color == black))
-			{
-				othernode->color = red;
-				node = parent;
-				parent = node->parent;
-			}
-			else
-			{
-				if (!(othernode->left) || othernode->left->color == black)
-				{
-					othernode->right->color = black;
-					othernode->color = red;
-					leftRotate(root, othernode);
-					othernode = parent->left;
-				}
-				othernode->color = parent->color;
-				parent->color = black;
-				othernode->left->color = black;
-				rightRotate(root, parent);
-				node = root;
-				break;
-			}
-		}
-	}
-	if (node)
-		node->color = black;
-}
+
 
 template<class T>
 Node<T>* Tree<T>::search(T key)
 {
-	return search_(root, key);
-}
-
-template<class T>
-Node<T>* Tree<T>::search_(Node<T>* node, T key) const
-{
-	if (node == NULL || node->key == key)
-		return node;
-	else
-		if (key > node->key)
-		{
-			return search_(node->right, key);
-		}
-		else
-		{
-			return search_(node->left, key);
-		}
+	return searcher.search(root, key);
 }
 
 template <class T>
@@ -480,20 +267,9 @@ void Tree<T>::detour_straight()
 	}
 	else
 	{
-		detour_straight_(root);
+		detourer.detour_straight(root);
 	}
 };
-
-template<class T>
-void Tree<T>::detour_straight_(Node<T>* tree)const 
-{
-	if (tree != NULL) 
-	{
-		std::cout << tree->key << " ";
-		detour_straight_(tree->left);
-		detour_straight_(tree->right);
-	}
-}
 
 template <class T>
 void Tree<T>::detour_symmetric()
@@ -504,20 +280,9 @@ void Tree<T>::detour_symmetric()
 	}
 	else
 	{
-		detour_symmetric_(root);
+		detourer.detour_symmetric(root);
 	}
 };
-
-template <class T>
-void Tree<T>::detour_symmetric_(Node<T>* tree)const
-{
-	if (tree != NULL) 
-	{
-		detour_symmetric_(tree->left);
-		std::cout << tree->key << " ";
-		detour_symmetric_(tree->right);
-	}
-}
 
 template <class T>
 void Tree<T>::detour_reverse()
@@ -528,20 +293,9 @@ void Tree<T>::detour_reverse()
 	}
 	else
 	{
-		detour_reverse_(root);
+		detourer.detour_reverse(root);
 	}
 };
-
-template <class T>
-void Tree<T>::detour_reverse_(Node<T>* tree)const
-{
-	if (tree != NULL) 
-	{
-		detour_reverse(tree->left);
-		detour_reverse(tree->right);
-		std::cout << tree->key << " ";
-	}
-}
 
 template <class T>
 void Tree<T>::detour_width()
@@ -552,32 +306,9 @@ void Tree<T>::detour_width()
 	}
 	else
 	{
-		detour_width_(root);
+		detourer.detour_width(root);
 	}
 };
-
-template <class T>
-void Tree<T>::detour_width_(Node<T>* tree)const
-{
-	if (tree != NULL)
-	{
-		std::queue <Node<T>*> q;
-		q.push(tree);
-		while(!q.empty())
-		{
-			std::cout << q.front()->key << ' ';
-			if (q.front()->left != NULL)
-			{
-				q.push(q.front()->left);
-			}
-			if (q.front()->right != NULL)
-			{
-				q.push(q.front()->right);
-			}
-			q.pop();
-		}
-	}
-}
 
 template <class T>
 int Tree<T>::deep(T key)

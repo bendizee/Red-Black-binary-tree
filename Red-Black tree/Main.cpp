@@ -12,17 +12,17 @@ int main()
 	{
 		tree.insert(num);
 	}
-	cout << "30:";
+	cout << "Search node with key 30:";
 	cout << endl << tree.search(30)->key << endl;
-	cout << " 100";
+	cout << "Remove node with key 100";
 	tree.remove(100);
 	cout << endl;
-	cout << ":\n";
+	cout << "Detour :\n";
 	tree.detour_width();
 	cout << endl;
-	cout << " 50:\n" << tree.deep(50) << endl;
-	cout << ":\n" << tree.height() << endl;
-	cout << ":\n";
+	cout << "Deep of node with key 50:\n" << tree.deep(50) << endl;
+	cout << "Height of tree:\n" << tree.height() << endl;
+	cout << "Information of nodes of tree:\n";
 	cout << endl;
 	tree.print();
 	cin.get();
