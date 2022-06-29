@@ -25,6 +25,5 @@ int main()
 	cout << "Information of nodes of tree:\n";
 	cout << endl;
 	tree.print();
-	cin.get();
 	return 0;
 }
